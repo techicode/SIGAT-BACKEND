@@ -22,8 +22,8 @@ class SoftwareCatalog(models.Model):
 
     class Meta:
         unique_together = ("name", "developer")
-        verbose_name = "Software en Catálogo"
-        verbose_name_plural = "Software en Catálogo"
+        verbose_name = "Software catalog"
+        verbose_name_plural = "software catalogs"
 
     def __str__(self):
         return f"{self.name} ({self.developer})"
@@ -41,8 +41,8 @@ class InstalledSoftware(models.Model):
 
     class Meta:
         unique_together = ("asset", "software")
-        verbose_name = "Software Instalado"
-        verbose_name_plural = "Software Instalado"
+        verbose_name = "Installed Software"
+        verbose_name_plural = "Installed Softwares"
 
     def __str__(self):
         return f"{self.software.name} en {self.asset.inventory_code}"
