@@ -21,6 +21,6 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "department",
             "created_at",
         ]
-        
-        # created_at only used by get, not the post 
-        read_only_fields = ['created_at']
+
+        # created_at only used by get, not the post
+        read_only_fields = ["created_at"]
