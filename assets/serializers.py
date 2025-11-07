@@ -1,22 +1,35 @@
 from rest_framework import serializers
 from .models import Asset
+from users.serializers import DepartmentBasicSerializer, EmployeeBasicSerializer
+from users.models import Department, Employee
 
 
-class AssetSerializer(serializers.ModelSerializer):
+class AssetListSerializer(serializers.ModelSerializer):
+
+    department = DepartmentBasicSerializer(read_only=True)
+    employee = EmployeeBasicSerializer(read_only=True)
+
     class Meta:
         model = Asset
-        fields = [
-            "inventory_code",
-            "serial_number",
-            "asset_type",
-            "status",
-            "brand",
-            "model",
-            "acquisition_date",
-            "employee",
-            "department",
-            "created_at",
-            "updated_at",
-        ]
+        fields = ["inventory_code", "asset_type", "status", "department", "employee"]
 
+
+class AssetDetailSerializer(serializers.ModelSerializer):
+
+    department = DepartmentBasicSerializer(read_only=True)
+    employee = EmployeeBasicSerializer(read_only=True)
+
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(), source="department", write_only=True
+    )
+    employee_id = serializers.PrimaryKeyRelatedField(
+        queryset=Employee.objects.all(),
+        source="employee",
+        write_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Asset
+        fields = "__all__"
         read_only_fields = ["created_at", "updated_at"]

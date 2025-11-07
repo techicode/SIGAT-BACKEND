@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from .models import Asset
-from .serializers import AssetSerializer
+from .serializers import AssetListSerializer, AssetDetailSerializer
 
 
 class AssetViewSet(viewsets.ModelViewSet):
@@ -9,4 +9,10 @@ class AssetViewSet(viewsets.ModelViewSet):
     """
 
     queryset = Asset.objects.all().order_by("inventory_code")
-    serializer_class = AssetSerializer
+
+    def get_serializer_class(self):
+
+        if self.action == "list":
+            return AssetListSerializer
+
+        return AssetDetailSerializer
