@@ -29,25 +29,6 @@ class SoftwareCatalog(models.Model):
         return f"{self.name} ({self.developer})"
 
 
-class InstalledSoftware(models.Model):
-    asset = models.ForeignKey(
-        Asset, on_delete=models.CASCADE, related_name="installed_software"
-    )
-    software = models.ForeignKey(
-        SoftwareCatalog, on_delete=models.PROTECT, related_name="installations"
-    )
-    version = models.CharField(max_length=50, blank=True)
-    install_date = models.DateField(null=True, blank=True)
-
-    class Meta:
-        unique_together = ("asset", "software")
-        verbose_name = "Installed Software"
-        verbose_name_plural = "Installed Softwares"
-
-    def __str__(self):
-        return f"{self.software.name} en {self.asset.inventory_code}"
-
-
 class License(models.Model):
     software = models.ForeignKey(
         SoftwareCatalog, on_delete=models.CASCADE, related_name="licenses"
@@ -60,3 +41,30 @@ class License(models.Model):
 
     def __str__(self):
         return f"Licencia para {self.software.name} (Qty: {self.quantity})"
+
+
+class InstalledSoftware(models.Model):
+    asset = models.ForeignKey(
+        Asset, on_delete=models.CASCADE, related_name="installed_software"
+    )
+    software = models.ForeignKey(
+        SoftwareCatalog, on_delete=models.PROTECT, related_name="installations"
+    )
+    version = models.CharField(max_length=50, blank=True)
+    install_date = models.DateField(null=True, blank=True)
+
+    license = models.ForeignKey(
+        License,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="installations",
+    )
+
+    class Meta:
+        unique_together = ("asset", "software")
+        verbose_name = "Installed Software"
+        verbose_name_plural = "Installed Softwares"
+
+    def __str__(self):
+        return f"{self.software.name} en {self.asset.inventory_code}"

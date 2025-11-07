@@ -1,6 +1,10 @@
 from rest_framework import viewsets
-from .models import SoftwareCatalog, InstalledSoftware
-from .serializers import SoftwareCatalogSerializer, InstalledSoftwareSerializer
+from .models import SoftwareCatalog, InstalledSoftware, License
+from .serializers import (
+    SoftwareCatalogSerializer,
+    InstalledSoftwareSerializer,
+    LicenseSerializer,
+)
 
 
 class SoftwareCatalogViewSet(viewsets.ModelViewSet):
@@ -19,3 +23,12 @@ class InstalledSoftwareViewSet(viewsets.ModelViewSet):
 
     queryset = InstalledSoftware.objects.all()
     serializer_class = InstalledSoftwareSerializer
+
+
+class LicenseViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint that allows licences to be viewed or edited.
+    """
+
+    queryset = License.objects.all()
+    serializer_class = LicenseSerializer
