@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Department, Employee
+from .models import Department, Employee, CustomUser
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -43,3 +43,9 @@ class EmployeeBasicSerializer(serializers.ModelSerializer):
     def get_full_name(self, obj):
 
         return f"{obj.first_name} {obj.last_name}"
+
+
+class SystemUserBasicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ["id", "username", "first_name", "last_name"]
