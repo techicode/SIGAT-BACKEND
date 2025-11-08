@@ -85,7 +85,7 @@ def test_custom_user_creation():
 
     assert user.username == "tecnico1"
     assert user.first_name == "Carlos"
-    assert user.role == "TECHNICIAN"  # Verificamos nuestro campo personalizado
+    assert user.role == "TECHNICIAN"
     assert user.is_staff is False
     assert user.is_superuser is False
 
