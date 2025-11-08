@@ -38,3 +38,10 @@ jobs:
       
       - name: Run tests
         run: pytest
+
+        - name: Run tests
+        env:
+
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+
+        run: pytest
