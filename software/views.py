@@ -1,4 +1,6 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from users.permissions import IsAdminOrReadOnly
 from .models import SoftwareCatalog, InstalledSoftware, License
 from .serializers import (
     SoftwareCatalogSerializer,
@@ -14,6 +16,7 @@ class SoftwareCatalogViewSet(viewsets.ModelViewSet):
 
     queryset = SoftwareCatalog.objects.all().order_by("name")
     serializer_class = SoftwareCatalogSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class InstalledSoftwareViewSet(viewsets.ModelViewSet):
@@ -23,6 +26,7 @@ class InstalledSoftwareViewSet(viewsets.ModelViewSet):
 
     queryset = InstalledSoftware.objects.all()
     serializer_class = InstalledSoftwareSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class LicenseViewSet(viewsets.ModelViewSet):
@@ -32,3 +36,4 @@ class LicenseViewSet(viewsets.ModelViewSet):
 
     queryset = License.objects.all()
     serializer_class = LicenseSerializer
+    permission_classes = [IsAdminOrReadOnly]
