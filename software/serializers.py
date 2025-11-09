@@ -55,9 +55,13 @@ class LicenseBasicSerializer(serializers.ModelSerializer):
 class InstalledSoftwareSerializer(serializers.ModelSerializer):
     asset = AssetBasicSerializer(read_only=True)
     license = LicenseBasicSerializer(read_only=True)
+    software = SoftwareCatalogSerializer(read_only=True)
 
-    asset_id = serializers.PrimaryKeyRelatedField(
-        queryset=Asset.objects.all(), source="asset", write_only=True
+    asset_id = serializers.SlugRelatedField(
+        queryset=Asset.objects.all(),
+        slug_field="inventory_code",
+        source="asset",
+        write_only=True,
     )
     software_id = serializers.PrimaryKeyRelatedField(
         queryset=SoftwareCatalog.objects.all(), source="software", write_only=True
