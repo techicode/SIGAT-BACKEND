@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from .permissions import IsAdminOrReadOnly
 from .models import Department, Employee
 from .serializers import DepartmentSerializer, EmployeeSerializer
 
@@ -9,9 +9,9 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     API endpoint that allows departments to be viewed or edited.
     """
 
-    permission_classes = [IsAuthenticated]
     queryset = Department.objects.all().order_by("name")
     serializer_class = DepartmentSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
