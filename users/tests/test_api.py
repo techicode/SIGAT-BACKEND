@@ -1,18 +1,26 @@
 import pytest
 from rest_framework.test import APIClient
-from ..models import Department
+from ..models import Department, CustomUser
+
+
+@pytest.fixture
+def test_user():
+    """Create a simple user for autentification tests"""
+    return CustomUser.objects.create_user(username="testuser", password="testpassword")
 
 
 @pytest.mark.django_db
-def test_list_departments():
+def test_list_departments_authenticated(test_user):
     """
-    Test for list the deparments
+    Test for list the deparments (for authenticated user)
     """
 
     Department.objects.create(name="Departamento A")
     Department.objects.create(name="Departamento B")
 
     client = APIClient()
+    client.force_authenticate(user=test_user)
+
     response = client.get("/api/departments/")
 
     assert response.status_code == 200
@@ -24,11 +32,24 @@ def test_list_departments():
 
 
 @pytest.mark.django_db
-def test_create_department():
+def test_list_departments_unauthenticated():
     """
-    test post to create a deparment
+    test unaunthenticated user
     """
     client = APIClient()
+    response = client.get("/api/departments/")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_create_department_authenticated(test_user):
+    """
+    test post to create a deparment with a authenticated user
+    """
+    client = APIClient()
+    client.force_authenticate(user=test_user)
+
     data = {"name": "Nuevo Departamento de TI"}
 
     response = client.post("/api/departments/", data=data)
@@ -42,14 +63,16 @@ def test_create_department():
 
 
 @pytest.mark.django_db
-def test_create_department_fails_on_duplicate_name():
+def test_create_department_fails_on_duplicate_name_authenticated(test_user):
     """
-    Test post to create a duplicated department name
+    Test post to create a duplicated department name with a authenticated user
     """
 
     Department.objects.create(name="Recursos Humanos")
 
     client = APIClient()
+    client.force_authenticate(user=test_user)
+
     data = {"name": "Recursos Humanos"}
 
     response = client.post("/api/departments/", data=data)
