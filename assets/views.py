@@ -10,6 +10,8 @@ class AssetViewSet(viewsets.ModelViewSet):
 
     queryset = Asset.objects.all().order_by("inventory_code")
 
+    lookup_field = "inventory_code"
+
     def get_serializer_class(self):
 
         if self.action == "list":
