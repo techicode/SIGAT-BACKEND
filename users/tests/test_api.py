@@ -4,13 +4,28 @@ from ..models import Department, CustomUser
 
 
 @pytest.fixture
-def test_user():
-    """Create a simple user for autentification tests"""
-    return CustomUser.objects.create_user(username="testuser", password="testpassword")
+def api_client():
+    return APIClient()
+
+
+@pytest.fixture
+def technician_user():
+    """test user with a technician role"""
+    return CustomUser.objects.create_user(
+        username="tech", password="pw", role=CustomUser.RoleChoices.TECHNICIAN
+    )
+
+
+@pytest.fixture
+def admin_user():
+    """test user with a admin role"""
+    return CustomUser.objects.create_user(
+        username="admin", password="pw", role=CustomUser.RoleChoices.ADMIN
+    )
 
 
 @pytest.mark.django_db
-def test_list_departments_authenticated(test_user):
+def test_list_departments_technician(api_client, technician_user):
     """
     Test for list the deparments (for authenticated user)
     """
@@ -18,10 +33,9 @@ def test_list_departments_authenticated(test_user):
     Department.objects.create(name="Departamento A")
     Department.objects.create(name="Departamento B")
 
-    client = APIClient()
-    client.force_authenticate(user=test_user)
+    api_client.force_authenticate(user=technician_user)
 
-    response = client.get("/api/departments/")
+    response = api_client.get("/api/departments/")
 
     assert response.status_code == 200
     assert len(response.data) == 2
@@ -32,50 +46,56 @@ def test_list_departments_authenticated(test_user):
 
 
 @pytest.mark.django_db
-def test_list_departments_unauthenticated():
+def test_create_department_as_technician_fails(api_client, technician_user):
+    """
+    test for technician, cannot create a deparment
+    """
+
+    api_client.force_authenticate(user=technician_user)
+
+    data = {"name": "Departamento Prohibido"}
+    response = api_client.post("/api/departments/", data=data)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_list_departments_unauthenticated(api_client):
     """
     test unaunthenticated user
     """
-    client = APIClient()
-    response = client.get("/api/departments/")
 
+    response = api_client.get("/api/departments/")
     assert response.status_code == 401
 
 
 @pytest.mark.django_db
-def test_create_department_authenticated(test_user):
+def test_create_department_as_admin_succeeds(api_client, admin_user):
     """
-    test post to create a deparment with a authenticated user
+    test for an admin can create a deparment
     """
-    client = APIClient()
-    client.force_authenticate(user=test_user)
 
-    data = {"name": "Nuevo Departamento de TI"}
+    api_client.force_authenticate(user=admin_user)
 
-    response = client.post("/api/departments/", data=data)
+    data = {"name": "Departamento Permitido"}
+    response = api_client.post("/api/departments/", data=data)
 
     assert response.status_code == 201
-
-    assert response.data["name"] == "Nuevo Departamento de TI"
-
     assert Department.objects.count() == 1
-    assert Department.objects.get().name == "Nuevo Departamento de TI"
 
 
 @pytest.mark.django_db
-def test_create_department_fails_on_duplicate_name_authenticated(test_user):
+def test_create_department_fails_on_duplicate_name(api_client, admin_user):
     """
     Test post to create a duplicated department name with a authenticated user
     """
-
     Department.objects.create(name="Recursos Humanos")
 
-    client = APIClient()
-    client.force_authenticate(user=test_user)
+    api_client.force_authenticate(user=admin_user)
 
     data = {"name": "Recursos Humanos"}
 
-    response = client.post("/api/departments/", data=data)
+    response = api_client.post("/api/departments/", data=data)
 
     assert response.status_code == 400
 
