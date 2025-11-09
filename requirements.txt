@@ -88,7 +88,6 @@ torchaudio==2.6.0
 torchvision==0.21.0
 tqdm==4.67.1
 transformers==4.55.4
-triton @ file:///F:/Users/ZenKeep/Downloads/triton-3.0.0-cp312-cp312-win_amd64.whl#sha256=5ae084d099e1d625ee5952255b1275933c96fafe90c9cb76051d98409f4b2e81
 typing_extensions==4.12.2
 tzdata==2025.2
 urllib3==2.3.0
