@@ -1,7 +1,24 @@
 import pytest
 from rest_framework.test import APIClient
-from users.models import Department, Employee
+from users.models import Department, Employee, CustomUser
 from assets.models import Asset
+
+
+@pytest.fixture
+def api_client():
+    return APIClient()
+
+
+@pytest.fixture
+def technician_user():
+    """
+    test user technician 
+    """
+    return CustomUser.objects.create_user(
+        username="tech_asset_test",
+        password="pw",
+        role=CustomUser.RoleChoices.TECHNICIAN,
+    )
 
 
 @pytest.fixture
@@ -21,11 +38,19 @@ def setup_data():
 
 
 @pytest.mark.django_db
-def test_list_assets(setup_data):
+def test_list_assets_unauthenticated_fails(api_client):
+    """
+    test unanthenticated user cant list assets
+    """
+    response = api_client.get("/api/assets/")
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_list_assets_as_technician(api_client, technician_user, setup_data):
     """
     test list assets and check if the response is "short"
     """
-
     department = setup_data["department"]
     employee = setup_data["employee"]
     Asset.objects.create(
@@ -37,8 +62,8 @@ def test_list_assets(setup_data):
         employee=employee,
     )
 
-    client = APIClient()
-    response = client.get("/api/assets/")
+    api_client.force_authenticate(user=technician_user)
+    response = api_client.get("/api/assets/")
 
     assert response.status_code == 200
     assert len(response.data) == 1
@@ -50,7 +75,7 @@ def test_list_assets(setup_data):
 
 
 @pytest.mark.django_db
-def test_retrieve_asset(setup_data):
+def test_retrieve_asset_as_technician(api_client, technician_user, setup_data):
     """
     test asset detailled
     """
@@ -62,24 +87,23 @@ def test_retrieve_asset(setup_data):
         department=department,
     )
 
-    client = APIClient()
-    response = client.get(f"/api/assets/{asset.inventory_code}/")
+    api_client.force_authenticate(user=technician_user)
+    response = api_client.get(f"/api/assets/{asset.inventory_code}/")
 
     assert response.status_code == 200
-
     assert response.data["inventory_code"] == "TEST-002"
     assert response.data["serial_number"] == "SN002"
 
 
 @pytest.mark.django_db
-def test_create_asset(setup_data):
+def test_create_asset_as_technician(api_client, technician_user, setup_data):
     """
     test create asset via POST
     """
     department = setup_data["department"]
     employee = setup_data["employee"]
 
-    client = APIClient()
+    api_client.force_authenticate(user=technician_user)
     asset_data = {
         "inventory_code": "TEST-003",
         "serial_number": "SN003",
@@ -91,7 +115,7 @@ def test_create_asset(setup_data):
         "employee_id": employee.id,
     }
 
-    response = client.post("/api/assets/", data=asset_data)
+    response = api_client.post("/api/assets/", data=asset_data)
 
     assert response.status_code == 201
     assert Asset.objects.count() == 1
