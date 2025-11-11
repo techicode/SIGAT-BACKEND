@@ -7,8 +7,9 @@ import random
 from faker import Faker
 
 from assets.models import Asset, ComputerDetail, StorageDevice, GraphicsCard
+from auditing.models import AuditLog, AssetCheckin, ComplianceWarning
 from software.models import SoftwareCatalog, InstalledSoftware, License
-from users.models import Department, Employee
+from users.models import CustomUser, Department, Employee
 
 
 # Initialize Faker with Spanish locale
@@ -23,34 +24,57 @@ def run():
     print("=" * 80)
 
     # Step 1: Clear existing data
-    print("\n[1/5] Clearing existing data...")
+    print("\n[1/9] Clearing existing data...")
     clear_database()
 
-    # Step 2: Create base entities
-    print("\n[2/5] Creating departments...")
+    # Step 2: Create users
+    print("\n[2/9] Creating system users...")
+    users = create_users()
+    print(f"✓ {len(users)} users created (5 technicians, 2 admins)")
+
+    # Step 3: Create base entities
+    print("\n[3/9] Creating departments...")
     departments = create_departments()
     print(f"✓ {len(departments)} departments created")
 
-    print("\n[3/5] Creating software catalog...")
+    print("\n[4/9] Creating software catalog...")
     software_catalog = create_software_catalog()
     print(f"✓ {len(software_catalog)} software applications created")
 
-    print("\n[4/5] Creating employees...")
+    print("\n[5/9] Creating employees...")
     employees = create_employees(departments)
     print(f"✓ {len(employees)} employees created")
 
-    # Step 3: Create assets and relationships
-    print("\n[5/5] Creating assets with hardware and software details...")
+    # Step 6: Create assets and relationships
+    print("\n[6/9] Creating assets with hardware and software details...")
+    assets = Asset.objects.all()  # We'll need to get these after creation
     total_assets = create_assets(departments, employees, software_catalog)
+
+    # Refresh assets list
+    assets = list(Asset.objects.all())
+
+    # Step 7: Create auditing records
+    print("\n[7/9] Creating asset check-ins...")
+    total_checkins = create_asset_checkins(assets, employees)
+
+    print("\n[8/9] Creating compliance warnings...")
+    total_warnings = create_compliance_warnings(assets, users)
+
+    print("\n[9/9] Creating audit logs...")
+    total_logs = create_audit_logs(users, assets)
 
     # Final summary
     print("\n" + "=" * 80)
     print("SEEDING COMPLETED SUCCESSFULLY")
     print("=" * 80)
-    print(f"Total assets created: {total_assets}")
-    print(f"Total employees: {len(employees)}")
+    print(f"Total users: {len(users)}")
     print(f"Total departments: {len(departments)}")
+    print(f"Total employees: {len(employees)}")
     print(f"Total software in catalog: {len(software_catalog)}")
+    print(f"Total assets created: {total_assets}")
+    print(f"Total asset check-ins: {total_checkins}")
+    print(f"Total compliance warnings: {total_warnings}")
+    print(f"Total audit logs: {total_logs}")
     print("=" * 80)
 
 
@@ -59,6 +83,9 @@ def clear_database():
 
     # Deletion order respecting dependencies
     models_to_clear = [
+        ('Asset Checkins', AssetCheckin),
+        ('Compliance Warnings', ComplianceWarning),
+        ('Audit Logs', AuditLog),
         ('Installed Software', InstalledSoftware),
         ('Licenses', License),
         ('Software Catalog', SoftwareCatalog),
@@ -68,6 +95,7 @@ def clear_database():
         ('Assets', Asset),
         ('Employees', Employee),
         ('Departments', Department),
+        ('Users', CustomUser),
     ]
 
     for name, model in models_to_clear:
@@ -97,6 +125,59 @@ def create_departments():
         print(f"  - {name}")
 
     return departments
+
+
+def create_users():
+    """Create technician and admin users."""
+
+    users = []
+    used_usernames = set()
+
+    # Create 5 technicians
+    print("  Creating technicians...")
+    for i in range(5):
+        # Generate unique username
+        while True:
+            first = fake.first_name().lower()
+            last = fake.last_name().lower()
+            username = f"{first}.{last}"
+            if username not in used_usernames:
+                used_usernames.add(username)
+                break
+
+        user = CustomUser.objects.create_user(
+            username=username,
+            password='password123',
+            email=f"{username}@universidad.cl",
+            role=CustomUser.RoleChoices.TECHNICIAN,
+            is_active=True
+        )
+        users.append(user)
+        print(f"    - Technician: {username}")
+
+    # Create 2 admins
+    print("  Creating administrators...")
+    for i in range(2):
+        # Generate unique username
+        while True:
+            first = fake.first_name().lower()
+            last = fake.last_name().lower()
+            username = f"{first}.{last}.admin"
+            if username not in used_usernames:
+                used_usernames.add(username)
+                break
+
+        user = CustomUser.objects.create_user(
+            username=username,
+            password='password123',
+            email=f"{username}@universidad.cl",
+            role=CustomUser.RoleChoices.ADMIN,
+            is_active=True
+        )
+        users.append(user)
+        print(f"    - Admin: {username}")
+
+    return users
 
 
 def create_software_catalog():
@@ -367,3 +448,243 @@ def create_assets(departments, employees, software_catalog):
 
     print(f"  - {created_count}/{TOTAL_ASSETS} assets created... Completed!")
     return created_count
+
+
+def create_asset_checkins(assets, employees):
+    """Create asset check-ins for assigned assets."""
+
+    TARGET_CHECKINS = 25
+    physical_states = ["Nuevo", "Muy Bueno", "Bueno", "Aceptable", "Necesita Reparación"]
+
+    # Sample notes that may appear in check-ins
+    sample_notes = [
+        "Todo funciona correctamente.",
+        "La batería ha perdido algo de duración.",
+        "El equipo está en excelente estado.",
+        "Se escucha el ventilador con frecuencia.",
+        "Pantalla con algún rayón menor.",
+        "Teclado presenta desgaste en algunas teclas.",
+        "Funciona bien pero es un poco lento al iniciar.",
+        "Sin problemas reportados.",
+        "El touchpad a veces no responde bien.",
+        "Necesita limpieza de polvo.",
+    ]
+
+    # Get only assets that are ASSIGNED (have an employee)
+    assigned_assets = [a for a in assets if a.status == Asset.StatusChoices.ASSIGNED and a.employee]
+
+    if not assigned_assets:
+        print("  No assigned assets found. Skipping check-ins.")
+        return 0
+
+    checkins_created = 0
+
+    # Distribute check-ins across assigned assets
+    # Some assets may have multiple historical check-ins
+    while checkins_created < TARGET_CHECKINS and assigned_assets:
+        asset = random.choice(assigned_assets)
+
+        # Create check-in for this asset
+        checkin_date = fake.date_time_between(start_date='-6M', end_date='now')
+
+        AssetCheckin.objects.create(
+            asset=asset,
+            employee=asset.employee,
+            checkin_date=checkin_date,
+            physical_state=random.choice(physical_states),
+            performance_satisfaction=random.randint(1, 5),
+            notes=random.choice(sample_notes) if random.random() < 0.5 else ""
+        )
+
+        checkins_created += 1
+
+        if checkins_created % 10 == 0:
+            print(f"  - {checkins_created}/{TARGET_CHECKINS} check-ins created...")
+
+    print(f"  - {checkins_created}/{TARGET_CHECKINS} check-ins created... Completed!")
+    return checkins_created
+
+
+def create_compliance_warnings(assets, users):
+    """Create compliance warnings for assets with detected issues."""
+
+    TARGET_WARNINGS = 25
+
+    # Pirated software names and typical installation paths
+    pirated_software_paths = [
+        "C:\\Program Files\\Adobe Photoshop CC 2023\\crack.exe",
+        "C:\\Games\\FIFA 24\\keygen.exe",
+        "C:\\Program Files\\Autodesk\\AutoCAD 2024\\xforce.dll",
+        "C:\\Users\\Public\\Downloads\\Office_Crack.exe",
+        "C:\\Games\\GTA V\\crack\\patch.exe",
+        "C:\\Software\\CorelDRAW\\keygen.exe",
+        "C:\\Program Files (x86)\\Nero\\crack.dll",
+        "C:\\Downloads\\Windows_Activator.exe",
+        "D:\\Games\\Minecraft Premium\\launcher_crack.exe",
+        "C:\\Adobe\\Premiere Pro 2023\\AMTEmu.exe",
+        "C:\\Archivos\\Programas crackeados\\winrar_keygen.exe",
+        "C:\\Games\\Sims 4\\crack_v2.exe",
+    ]
+
+    # Get only computer assets (NOTEBOOK or DESKTOP)
+    computer_assets = [
+        a for a in assets
+        if a.asset_type in [Asset.AssetTypeChoices.NOTEBOOK, Asset.AssetTypeChoices.DESKTOP]
+    ]
+
+    if not computer_assets:
+        print("  No computer assets found. Skipping compliance warnings.")
+        return 0
+
+    # Calculate distribution
+    # 50% RESOLVED, 30% NEW, 10% IN_REVIEW, 10% FALSE_POSITIVE
+    resolved_count = int(TARGET_WARNINGS * 0.5)  # 12-13
+    new_count = int(TARGET_WARNINGS * 0.3)  # 7-8
+    in_review_count = int(TARGET_WARNINGS * 0.1)  # 2-3
+    false_positive_count = TARGET_WARNINGS - resolved_count - new_count - in_review_count  # remainder
+
+    statuses_distribution = (
+        [ComplianceWarning.StatusChoices.RESOLVED] * resolved_count +
+        [ComplianceWarning.StatusChoices.NEW] * new_count +
+        [ComplianceWarning.StatusChoices.IN_REVIEW] * in_review_count +
+        [ComplianceWarning.StatusChoices.FALSE_POSITIVE] * false_positive_count
+    )
+
+    # Resolution notes samples for different statuses
+    resolution_notes_samples = {
+        ComplianceWarning.StatusChoices.RESOLVED: [
+            "Software eliminado. Se instaló versión con licencia válida.",
+            "Archivo crackeado removido del sistema. Usuario capacitado sobre políticas de software.",
+            "Se desinstaló el software no autorizado. Licencia corporativa adquirida e instalada.",
+            "Crack eliminado. Se verificó instalación de versión legítima.",
+        ],
+        ComplianceWarning.StatusChoices.IN_REVIEW: [
+            "Revisando con el usuario. Pendiente verificación de licencia.",
+            "En proceso de análisis. Coordinando con departamento legal.",
+            "Verificando si el software es necesario para las funciones del empleado.",
+        ],
+        ComplianceWarning.StatusChoices.FALSE_POSITIVE: [
+            "Falsa alarma. El archivo es parte de un software legítimo.",
+            "Error del agente. El ejecutable es una herramienta de desarrollo autorizada.",
+            "No es software pirata. Se trata de un parche oficial del fabricante.",
+        ],
+    }
+
+    warnings_created = 0
+
+    for status in statuses_distribution:
+        asset = random.choice(computer_assets)
+
+        # Generate 1-3 evidence paths
+        num_paths = random.randint(1, 3)
+        evidence_paths = random.sample(pirated_software_paths, num_paths)
+        evidence = {"paths": evidence_paths}
+
+        # Determine if we need resolved_by and resolution_notes
+        resolved_by = None
+        resolution_notes = ""
+
+        if status != ComplianceWarning.StatusChoices.NEW:
+            resolved_by = random.choice(users)
+            if status in resolution_notes_samples:
+                resolution_notes = random.choice(resolution_notes_samples[status])
+
+        # Create the compliance warning
+        ComplianceWarning.objects.create(
+            asset=asset,
+            detection_date=fake.date_time_between(start_date='-3M', end_date='now'),
+            category="SOFTWARE_NO_LICENCIADO",
+            description="",  # Can be empty as per requirements
+            evidence=evidence,
+            status=status,
+            resolved_by=resolved_by,
+            resolution_notes=resolution_notes
+        )
+
+        warnings_created += 1
+
+        if warnings_created % 10 == 0:
+            print(f"  - {warnings_created}/{TARGET_WARNINGS} compliance warnings created...")
+
+    print(f"  - {warnings_created}/{TARGET_WARNINGS} compliance warnings created... Completed!")
+    return warnings_created
+
+
+def create_audit_logs(users, assets):
+    """Create audit logs simulating past system actions."""
+
+    TARGET_LOGS = 30
+
+    # Available actions
+    actions = ["CREATE", "UPDATE", "DELETE"]
+
+    # Target tables and their typical operations
+    target_tables = [
+        "Asset",
+        "Employee",
+        "SoftwareCatalog",
+        "InstalledSoftware",
+        "ComplianceWarning",
+    ]
+
+    # Sample details for different actions
+    sample_details = {
+        "Asset": {
+            "CREATE": {"inventory_code": "UPLA-NOTE-0099", "asset_type": "NOTEBOOK", "brand": "Dell"},
+            "UPDATE": {"field": "status", "old_value": "IN_STORAGE", "new_value": "ASSIGNED"},
+            "DELETE": {"inventory_code": "UPLA-DESK-0050", "reason": "Equipo obsoleto"},
+        },
+        "Employee": {
+            "CREATE": {"rut": "12.345.678-9", "name": "Juan Pérez"},
+            "UPDATE": {"field": "department", "old_value": "TI", "new_value": "Finanzas"},
+            "DELETE": {"rut": "98.765.432-1", "reason": "Empleado retirado"},
+        },
+        "SoftwareCatalog": {
+            "CREATE": {"name": "Slack", "developer": "Slack Technologies"},
+            "UPDATE": {"field": "name", "old_value": "Office 2019", "new_value": "Office 365"},
+            "DELETE": {"name": "Software obsoleto", "reason": "Ya no se utiliza"},
+        },
+        "InstalledSoftware": {
+            "CREATE": {"asset": "UPLA-NOTE-0045", "software": "Google Chrome", "version": "120.0.0"},
+            "UPDATE": {"field": "version", "old_value": "119.0.0", "new_value": "120.0.0"},
+            "DELETE": {"asset": "UPLA-DESK-0022", "software": "WinRAR", "reason": "Licencia vencida"},
+        },
+        "ComplianceWarning": {
+            "CREATE": {"asset": "UPLA-NOTE-0078", "category": "SOFTWARE_NO_LICENCIADO"},
+            "UPDATE": {"field": "status", "old_value": "NEW", "new_value": "RESOLVED"},
+            "DELETE": {"id": 123, "reason": "Falso positivo confirmado"},
+        },
+    }
+
+    logs_created = 0
+
+    for _ in range(TARGET_LOGS):
+        action = random.choice(actions)
+        table = random.choice(target_tables)
+        user = random.choice(users)
+
+        # Get sample details for this table and action
+        details = sample_details[table][action].copy()
+
+        # Add timestamp variation to details
+        details["timestamp"] = fake.date_time_between(start_date='-6M', end_date='now').isoformat()
+
+        # Random target_id
+        target_id = random.randint(1, 200)
+
+        AuditLog.objects.create(
+            system_user=user,
+            action=action,
+            target_table=table,
+            target_id=target_id,
+            details=details,
+            timestamp=fake.date_time_between(start_date='-6M', end_date='now')
+        )
+
+        logs_created += 1
+
+        if logs_created % 10 == 0:
+            print(f"  - {logs_created}/{TARGET_LOGS} audit logs created...")
+
+    print(f"  - {logs_created}/{TARGET_LOGS} audit logs created... Completed!")
+    return logs_created
