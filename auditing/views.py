@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.db.models import Q
 from datetime import timedelta
@@ -26,11 +28,22 @@ class AssetCheckinViewSet(viewsets.ModelViewSet):
 class ComplianceWarningViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows compliances warning to be viewed or edited.
+
+    Supports:
+    - Search: ?search=NB001 (searches asset inventory code)
+    - Filters: ?status=NUEVA
+    - Ordering: ?ordering=-detection_date
     """
 
-    queryset = ComplianceWarning.objects.all().order_by("-detection_date")
+    queryset = ComplianceWarning.objects.select_related('asset', 'resolved_by').all().order_by("-detection_date")
     serializer_class = ComplianceWarningSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['asset__inventory_code', 'category', 'description']
+    ordering_fields = ['detection_date', 'status']
+    filterset_fields = {
+        'status': ['exact'],
+    }
 
     def perform_update(self, serializer):
         serializer.save(resolved_by=self.request.user)

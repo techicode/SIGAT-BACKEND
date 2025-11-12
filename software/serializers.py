@@ -23,10 +23,12 @@ class LicenseBasicSerializer(serializers.ModelSerializer):
 
 class SoftwareCatalogSerializer(serializers.ModelSerializer):
     vulnerabilities = serializers.StringRelatedField(many=True, read_only=True)
+    installed_count = serializers.IntegerField(read_only=True, default=0)
+    license_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = SoftwareCatalog
-        fields = ["id", "name", "developer", "vulnerabilities"]
+        fields = ["id", "name", "developer", "vulnerabilities", "installed_count", "license_count"]
 
 
 class InstalledSoftwareSerializer(serializers.ModelSerializer):

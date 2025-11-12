@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     # Apps de terceros
     "django_extensions",
     "rest_framework",
+    "django_filters",
     "corsheaders",
     # Mis apps
     "users.apps.UsersConfig",

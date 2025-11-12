@@ -2,6 +2,9 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count
 
 from .permissions import IsAdminOrReadOnly
 from .models import Department, Employee, CustomUser
@@ -45,19 +48,34 @@ class ChangePasswordView(APIView):
 class UserViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows users to be viewed or edited.
+
+    Supports:
+    - Search: ?search=username (searches username and email)
+    - Filter: ?role=ADMIN or ?role=TECHNICIAN
     """
 
     queryset = CustomUser.objects.all().order_by("-date_joined")
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['username', 'email', 'first_name', 'last_name']
+    filterset_fields = {
+        'role': ['exact'],
+        'is_active': ['exact'],
+    }
 
 
 class DepartmentViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows departments to be viewed or edited.
+
+    Includes employee_count and asset_count annotations.
     """
 
-    queryset = Department.objects.all().order_by("name")
+    queryset = Department.objects.annotate(
+        employee_count=Count('employees', distinct=True),
+        asset_count=Count('assets', distinct=True)
+    ).order_by("name")
     serializer_class = DepartmentSerializer
     permission_classes = [IsAdminOrReadOnly]
 
@@ -65,7 +83,17 @@ class DepartmentViewSet(viewsets.ModelViewSet):
 class EmployeeViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows employees to be viewed or edited.
+
+    Supports:
+    - Search: ?search=name (searches first_name, last_name, email, rut)
+    - Filter: ?department=1
     """
 
-    queryset = Employee.objects.all().order_by("last_name", "first_name")
+    queryset = Employee.objects.select_related('department').all().order_by("last_name", "first_name")
     serializer_class = EmployeeSerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    search_fields = ['first_name', 'last_name', 'email', 'rut', 'position']
+    filterset_fields = {
+        'department': ['exact'],
+    }

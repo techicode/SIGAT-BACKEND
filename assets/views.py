@@ -2,6 +2,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import SearchFilter, OrderingFilter
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Asset
 from .serializers import AssetListSerializer, AssetDetailSerializer
 
@@ -24,6 +25,7 @@ class AssetViewSet(viewsets.ModelViewSet):
     - Pagination: ?page=2&page_size=50
     - Search: ?search=Dell (searches inventory_code, serial_number, brand, model, department, employee)
     - Ordering: ?ordering=brand or ?ordering=-inventory_code
+    - Filters: ?asset_type=NOTEBOOK&status=ASIGNADO&department=1
     """
 
     queryset = Asset.objects.select_related('department', 'employee').order_by("inventory_code")
@@ -34,7 +36,7 @@ class AssetViewSet(viewsets.ModelViewSet):
     pagination_class = AssetPagination
 
     # Filtering and search
-    filter_backends = [SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = [
         'inventory_code',
         'serial_number',
@@ -45,6 +47,11 @@ class AssetViewSet(viewsets.ModelViewSet):
         'employee__last_name',
     ]
     ordering_fields = ['inventory_code', 'brand', 'model', 'status', 'asset_type']
+    filterset_fields = {
+        'asset_type': ['exact'],
+        'status': ['exact'],
+        'department': ['exact'],
+    }
 
     def get_serializer_class(self):
         if self.action == "list":

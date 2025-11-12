@@ -13,6 +13,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "email",
             "role",
+            "is_active",
             "password",
         ]
         extra_kwargs = {"password": {"write_only": True}}
@@ -22,13 +23,32 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-class DepartmentSerializer(serializers.ModelSerializer):
+class DepartmentBasicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Department
-        fields = ["id", "name", "created_at"]
+        fields = ["id", "name"]
+
+
+class DepartmentSerializer(serializers.ModelSerializer):
+    employee_count = serializers.IntegerField(read_only=True, default=0)
+    asset_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = Department
+        fields = ["id", "name", "employee_count", "asset_count", "created_at"]
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
+    department = DepartmentBasicSerializer(read_only=True)
+    department_id = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all(),
+        source='department',
+        write_only=True,
+        required=False,
+        allow_null=True
+    )
+    full_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Employee
         fields = [
@@ -36,18 +56,17 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "rut",
             "first_name",
             "last_name",
+            "full_name",
             "email",
             "position",
             "department",
+            "department_id",
             "created_at",
         ]
         read_only_fields = ["created_at"]
 
-
-class DepartmentBasicSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Department
-        fields = ["id", "name"]
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
 
 
 class EmployeeBasicSerializer(serializers.ModelSerializer):

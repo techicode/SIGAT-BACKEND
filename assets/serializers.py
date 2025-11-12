@@ -11,7 +11,16 @@ class AssetListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Asset
-        fields = ["inventory_code", "asset_type", "status", "department", "employee"]
+        fields = [
+            "inventory_code",
+            "serial_number",
+            "asset_type",
+            "brand",
+            "model",
+            "status",
+            "department",
+            "employee",
+        ]
 
 
 class AssetDetailSerializer(serializers.ModelSerializer):
