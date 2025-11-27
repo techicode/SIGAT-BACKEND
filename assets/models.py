@@ -49,7 +49,9 @@ class Asset(models.Model):
     )
     department = models.ForeignKey(
         Department,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="assets",
         verbose_name="Departamento (Centro de Costo)",
     )

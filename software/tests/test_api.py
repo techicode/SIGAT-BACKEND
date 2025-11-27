@@ -53,7 +53,7 @@ def test_list_software_catalog(api_client, technician_user):
     response = api_client.get("/api/software-catalog/")
 
     assert response.status_code == 200
-    assert len(response.data) == 2
+    assert len(response.data['results']) == 2
 
 
 @pytest.mark.django_db
@@ -79,8 +79,8 @@ def test_list_installed_software(api_client, technician_user, setup_asset_and_so
     response = api_client.get("/api/installed-software/")
 
     assert response.status_code == 200
-    assert len(response.data) == 1
-    assert response.data[0]["asset"]["inventory_code"] == "API-TEST-001"
+    assert len(response.data['results']) == 1
+    assert response.data['results'][0]["asset"]["inventory_code"] == "API-TEST-001"
 
 
 @pytest.mark.django_db

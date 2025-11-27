@@ -66,9 +66,9 @@ def test_list_assets_as_technician(api_client, technician_user, setup_data):
     response = api_client.get("/api/assets/")
 
     assert response.status_code == 200
-    assert len(response.data) == 1
+    assert len(response.data['results']) == 1
 
-    asset_data = response.data[0]
+    asset_data = response.data['results'][0]
     assert asset_data["inventory_code"] == "TEST-001"
     assert asset_data["employee"]["full_name"] == "Usuario DePrueba"
     assert "serial_number" not in asset_data

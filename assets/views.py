@@ -1,10 +1,14 @@
-from rest_framework import viewsets
+import logging
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Asset
 from .serializers import AssetListSerializer, AssetDetailSerializer
+
+logger = logging.getLogger(__name__)
 
 
 class AssetPagination(PageNumberPagination):
@@ -12,7 +16,7 @@ class AssetPagination(PageNumberPagination):
     Custom pagination class for assets.
     Allows clients to request custom page sizes up to max_page_size.
     """
-    page_size = 20
+    page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
 
@@ -58,3 +62,18 @@ class AssetViewSet(viewsets.ModelViewSet):
             return AssetListSerializer
 
         return AssetDetailSerializer
+
+    def create(self, request, *args, **kwargs):
+        """Override create to add detailed logging for validation errors"""
+        logger.info(f"Creating asset with data: {request.data}")
+        serializer = self.get_serializer(data=request.data)
+
+        if not serializer.is_valid():
+            logger.error(f"Asset creation failed. Validation errors: {serializer.errors}")
+            logger.error(f"Request data was: {request.data}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        logger.info(f"Asset created successfully: {serializer.data}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)

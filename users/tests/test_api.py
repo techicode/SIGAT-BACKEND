@@ -38,9 +38,9 @@ def test_list_departments_technician(api_client, technician_user):
     response = api_client.get("/api/departments/")
 
     assert response.status_code == 200
-    assert len(response.data) == 2
+    assert len(response.data['results']) == 2
 
-    department_names = [d["name"] for d in response.data]
+    department_names = [d["name"] for d in response.data['results']]
     assert "Departamento A" in department_names
     assert "Departamento B" in department_names
 

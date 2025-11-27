@@ -13,7 +13,6 @@ class AssetListSerializer(serializers.ModelSerializer):
         model = Asset
         fields = [
             "inventory_code",
-            "serial_number",
             "asset_type",
             "brand",
             "model",
@@ -29,13 +28,18 @@ class AssetDetailSerializer(serializers.ModelSerializer):
     employee = EmployeeBasicSerializer(read_only=True)
 
     department_id = serializers.PrimaryKeyRelatedField(
-        queryset=Department.objects.all(), source="department", write_only=True
+        queryset=Department.objects.all(),
+        source="department",
+        write_only=True,
+        allow_null=True,
+        required=False,
     )
     employee_id = serializers.PrimaryKeyRelatedField(
         queryset=Employee.objects.all(),
         source="employee",
         write_only=True,
         allow_null=True,
+        required=False,
     )
 
     class Meta:

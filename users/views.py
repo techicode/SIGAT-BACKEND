@@ -1,3 +1,4 @@
+import logging
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.views import APIView
@@ -5,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count
+
+logger = logging.getLogger(__name__)
 
 from .permissions import IsAdminOrReadOnly
 from .models import Department, Employee, CustomUser
@@ -78,6 +81,21 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     ).order_by("name")
     serializer_class = DepartmentSerializer
     permission_classes = [IsAdminOrReadOnly]
+
+    def create(self, request, *args, **kwargs):
+        """Override create to add detailed logging for validation errors"""
+        logger.info(f"Creating department with data: {request.data}")
+        serializer = self.get_serializer(data=request.data)
+
+        if not serializer.is_valid():
+            logger.error(f"Department creation failed. Validation errors: {serializer.errors}")
+            logger.error(f"Request data was: {request.data}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        logger.info(f"Department created successfully: {serializer.data}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
