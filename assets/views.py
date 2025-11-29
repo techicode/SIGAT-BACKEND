@@ -55,6 +55,7 @@ class AssetViewSet(viewsets.ModelViewSet):
         'asset_type': ['exact'],
         'status': ['exact'],
         'department': ['exact'],
+        'employee': ['exact'],
     }
 
     def get_serializer_class(self):

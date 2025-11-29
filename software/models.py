@@ -3,6 +3,10 @@ from assets.models import Asset
 
 
 class Vulnerability(models.Model):
+    """
+    DEPRECATED: This model is being replaced by SoftwareVulnerability.
+    Kept for backwards compatibility.
+    """
     cve_id = models.CharField(max_length=50, unique=True, verbose_name="ID de CVE")
     description = models.TextField(blank=True)
     severity = models.CharField(max_length=20)
@@ -68,3 +72,63 @@ class InstalledSoftware(models.Model):
 
     def __str__(self):
         return f"{self.software.name} en {self.asset.inventory_code}"
+
+
+class SoftwareVulnerability(models.Model):
+    """
+    Tracks vulnerabilities for specific software with version information.
+    This allows detecting if installed software versions are vulnerable.
+    """
+    class SeverityChoices(models.TextChoices):
+        CRITICAL = "CRITICAL", "Crítica"
+        HIGH = "HIGH", "Alta"
+        MEDIUM = "MEDIUM", "Media"
+        LOW = "LOW", "Baja"
+
+    software = models.ForeignKey(
+        SoftwareCatalog,
+        on_delete=models.CASCADE,
+        related_name="software_vulnerabilities"
+    )
+    cve_id = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name="ID de CVE",
+        help_text="Ej: CVE-2024-1234"
+    )
+    title = models.CharField(
+        max_length=255,
+        verbose_name="Título de la Vulnerabilidad"
+    )
+    description = models.TextField(blank=True)
+    severity = models.CharField(
+        max_length=20,
+        choices=SeverityChoices.choices,
+        default=SeverityChoices.MEDIUM
+    )
+
+    # Version information
+    affected_versions = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Versiones Afectadas",
+        help_text="Ej: < 2.5.0, >= 1.0 < 2.0"
+    )
+    safe_version_from = models.CharField(
+        max_length=50,
+        verbose_name="Versión Segura Desde",
+        help_text="Primera versión sin esta vulnerabilidad. Ej: 2.5.0"
+    )
+
+    link_to_details = models.URLField(max_length=512, blank=True)
+    discovered_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Vulnerabilidad de Software"
+        verbose_name_plural = "Vulnerabilidades de Software"
+        ordering = ['-severity', '-created_at']
+
+    def __str__(self):
+        cve = f"{self.cve_id} - " if self.cve_id else ""
+        return f"{cve}{self.software.name} < {self.safe_version_from}"
