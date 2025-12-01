@@ -26,12 +26,39 @@ class AssetCheckinSerializer(serializers.ModelSerializer):
             "asset_id",
             "employee",
             "employee_id",
+            "unique_token",
+            "status",
+            "requested_at",
+            "completed_at",
             "checkin_date",
             "physical_state",
             "performance_satisfaction",
             "notes",
         ]
-        read_only_fields = ["checkin_date"]
+        read_only_fields = ["unique_token", "requested_at"]
+
+
+class AssetCheckinPublicSerializer(serializers.ModelSerializer):
+    """
+    Serializer for public checkin form (via unique token, no auth required)
+    Only shows necessary asset/employee information
+    """
+    asset = AssetBasicSerializer(read_only=True)
+    employee = EmployeeBasicSerializer(read_only=True)
+
+    class Meta:
+        model = AssetCheckin
+        fields = [
+            "id",
+            "asset",
+            "employee",
+            "status",
+            "requested_at",
+            "physical_state",
+            "performance_satisfaction",
+            "notes",
+        ]
+        read_only_fields = ["id", "asset", "employee", "status", "requested_at"]
 
 
 class ComplianceWarningSerializer(serializers.ModelSerializer):
@@ -123,3 +150,111 @@ class ObsoleteAssetSerializer(serializers.Serializer):
     employee = serializers.CharField(allow_null=True)
     reasons = serializers.ListField(child=serializers.CharField())
     details = serializers.JSONField()
+
+
+# ==================== AGENT HARDWARE REPORT SERIALIZERS ====================
+
+class AgentOSSerializer(serializers.Serializer):
+    """Serializer for operating system information from agent"""
+    nombre = serializers.CharField(max_length=255)
+    version = serializers.CharField(max_length=100)
+    arquitectura = serializers.CharField(max_length=50)
+
+
+class AgentMotherboardSerializer(serializers.Serializer):
+    """Serializer for motherboard information from agent"""
+    fabricante = serializers.CharField(max_length=255)
+    modelo = serializers.CharField(max_length=255)
+
+
+class AgentStorageDeviceSerializer(serializers.Serializer):
+    """Serializer for storage device information from agent"""
+    modelo = serializers.CharField(max_length=255)
+    numero_serie = serializers.CharField(max_length=255)
+    capacidad_gb = serializers.FloatField()
+    espacio_libre_gb = serializers.FloatField()
+
+
+class AgentSoftwareSerializer(serializers.Serializer):
+    """Serializer for installed software information from agent"""
+    nombre = serializers.CharField(max_length=255)
+    desarrollador = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    version = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+
+class AgentSuspiciousSoftwareSerializer(serializers.Serializer):
+    """Serializer for suspicious/illegal software detected by agent"""
+    nombre = serializers.CharField(max_length=255, help_text="Software name")
+    ruta_instalacion = serializers.CharField(max_length=500, help_text="Installation path")
+    razon_sospecha = serializers.CharField(
+        max_length=500,
+        help_text="Reason for suspicion (e.g., 'crack', 'keygen', 'no license')"
+    )
+    desarrollador = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    version = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    evidencia = serializers.JSONField(
+        required=False,
+        help_text="Additional evidence (files found, registry keys, etc.)"
+    )
+
+
+class AgentHardwareSerializer(serializers.Serializer):
+    """Serializer for hardware information from agent"""
+    identificador_unico = serializers.CharField(max_length=255, help_text="BIOS/UEFI UUID")
+    cpu = serializers.CharField(max_length=255)
+    memoria_ram_gb = serializers.FloatField()
+    placa_base = AgentMotherboardSerializer()
+    tipo_chassis = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="Chassis type from Win32_SystemEnclosure (8-14=Laptop, 3-7=Desktop)"
+    )
+    almacenamiento = serializers.ListField(
+        child=AgentStorageDeviceSerializer(),
+        allow_empty=True
+    )
+    gpus = serializers.ListField(
+        child=serializers.CharField(max_length=255),
+        allow_empty=True
+    )
+
+
+class AgentHardwareReportSerializer(serializers.Serializer):
+    """
+    Main serializer for hardware reports sent by the SIGAT agent.
+
+    Expected payload structure:
+    {
+        "sistema_operativo": {...},
+        "hardware": {...},
+        "software_instalado": [...],      # Optional
+        "software_sospechoso": [...]      # Optional but IMPORTANT
+    }
+    """
+    sistema_operativo = AgentOSSerializer()
+    hardware = AgentHardwareSerializer()
+    software_instalado = serializers.ListField(
+        child=AgentSoftwareSerializer(),
+        required=False,
+        allow_empty=True
+    )
+    software_sospechoso = serializers.ListField(
+        child=AgentSuspiciousSoftwareSerializer(),
+        required=False,
+        allow_empty=True,
+        help_text="List of suspicious/illegal software detected (cracks, keygens, pirated software)"
+    )
+
+
+class AgentReportResponseSerializer(serializers.Serializer):
+    """Serializer for agent report API response"""
+    success = serializers.BooleanField()
+    message = serializers.CharField()
+    asset_created = serializers.BooleanField()
+    asset_id = serializers.IntegerField(required=False)
+    inventory_code = serializers.CharField(required=False)
+    warnings_generated = serializers.IntegerField()
+    changes_detected = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )

@@ -31,7 +31,14 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env("DEBUG")
 
-ALLOWED_HOSTS = []
+# Para acceso desde la red local en desarrollo
+# En producción, especificar solo los dominios permitidos
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '192.168.1.114',  # IP local del servidor (ajustar según tu red)
+    '*',  # SOLO para desarrollo - permite cualquier host
+]
 
 
 # Application definition
@@ -146,7 +153,12 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://192.168.1.114:5173",  # Frontend accesible desde la red
 ]
+
+# CORS: Permitir cualquier origen en desarrollo (solo para testing)
+# En producción, mantener solo CORS_ALLOWED_ORIGINS
+CORS_ALLOW_ALL_ORIGINS = True  # SOLO para desarrollo
 
 # Logging configuration
 LOGGING = {

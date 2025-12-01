@@ -1,7 +1,9 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from assets.models import Asset
 from users.models import Employee
+import secrets
 
 
 class AuditLog(models.Model):
@@ -23,17 +25,43 @@ class AuditLog(models.Model):
 
 
 class AssetCheckin(models.Model):
+    class StatusChoices(models.TextChoices):
+        PENDING = "PENDIENTE", "Pendiente"
+        COMPLETED = "COMPLETADO", "Completado"
+        EXPIRED = "EXPIRADO", "Expirado"
+
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="checkins")
     employee = models.ForeignKey(
         Employee, on_delete=models.PROTECT, related_name="checkins"
     )
-    checkin_date = models.DateTimeField(auto_now_add=True)
-    physical_state = models.CharField(max_length=50)
+    unique_token = models.CharField(max_length=64, unique=True, db_index=True, default='')
+    status = models.CharField(
+        max_length=20,
+        choices=StatusChoices.choices,
+        default=StatusChoices.PENDING
+    )
+    requested_at = models.DateTimeField(default=timezone.now)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    # Original fields (completed by employee)
+    checkin_date = models.DateTimeField(null=True, blank=True)
+    physical_state = models.CharField(max_length=50, blank=True)
     performance_satisfaction = models.PositiveIntegerField(null=True, blank=True)
     notes = models.TextField(blank=True)
 
     def __str__(self):
-        return f"Check-in de {self.asset.inventory_code} por {self.employee}"
+        return f"Check-in de {self.asset.inventory_code} por {self.employee} - {self.get_status_display()}"
+
+    @staticmethod
+    def generate_unique_token():
+        """Generate a cryptographically secure unique token"""
+        return secrets.token_urlsafe(32)
+
+    def save(self, *args, **kwargs):
+        """Override save to generate token if not present"""
+        if not self.unique_token:
+            self.unique_token = self.generate_unique_token()
+        super().save(*args, **kwargs)
 
 
 class ComplianceWarning(models.Model):
@@ -44,7 +72,7 @@ class ComplianceWarning(models.Model):
         FALSE_POSITIVE = "FALSO_POSITIVO", "Falso Positivo"
 
     asset = models.ForeignKey(Asset, on_delete=models.CASCADE, related_name="warnings")
-    detection_date = models.DateTimeField(auto_now_add=True)
+    detection_date = models.DateTimeField(default=timezone.now)
     category = models.CharField(max_length=100)
     description = models.TextField()
     evidence = models.JSONField(

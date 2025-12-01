@@ -32,7 +32,7 @@ class AssetViewSet(viewsets.ModelViewSet):
     - Filters: ?asset_type=NOTEBOOK&status=ASIGNADO&department=1
     """
 
-    queryset = Asset.objects.select_related('department', 'employee').order_by("inventory_code")
+    queryset = Asset.objects.select_related('department', 'employee').order_by("-created_at")
     permission_classes = [IsAuthenticated]
     lookup_field = "inventory_code"
 
@@ -50,12 +50,13 @@ class AssetViewSet(viewsets.ModelViewSet):
         'employee__first_name',
         'employee__last_name',
     ]
-    ordering_fields = ['inventory_code', 'brand', 'model', 'status', 'asset_type']
+    ordering_fields = ['inventory_code', 'brand', 'model', 'status', 'asset_type', 'created_at', 'updated_at']
     filterset_fields = {
         'asset_type': ['exact'],
         'status': ['exact'],
         'department': ['exact'],
         'employee': ['exact'],
+        'inventory_code': ['exact', 'istartswith'],
     }
 
     def get_serializer_class(self):

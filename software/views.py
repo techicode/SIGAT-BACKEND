@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count
 from users.permissions import IsAdminOrReadOnly
 from .models import SoftwareCatalog, InstalledSoftware, License, SoftwareVulnerability
@@ -18,6 +19,16 @@ from .serializers import (
 from .version_utils import generate_vulnerability_warnings, get_vulnerable_installations
 
 
+class SoftwareCatalogPagination(PageNumberPagination):
+    """
+    Custom pagination class for software catalog.
+    Allows clients to request custom page sizes up to max_page_size.
+    """
+    page_size = 100
+    page_size_query_param = 'page_size'
+    max_page_size = 500
+
+
 class SoftwareCatalogViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows softwares to be viewed or edited.
@@ -25,6 +36,7 @@ class SoftwareCatalogViewSet(viewsets.ModelViewSet):
     Supports:
     - Search: ?search=Adobe (searches name and developer)
     - Ordering: ?ordering=name or ?ordering=-installed_count
+    - Pagination: ?page=2&page_size=50
     """
 
     queryset = SoftwareCatalog.objects.annotate(
@@ -32,6 +44,7 @@ class SoftwareCatalogViewSet(viewsets.ModelViewSet):
         license_count=Count('licenses', distinct=True)
     ).prefetch_related('software_vulnerabilities').order_by('name')
     permission_classes = [IsAuthenticated]
+    pagination_class = SoftwareCatalogPagination
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ['name', 'developer']
     ordering_fields = ['name', 'developer', 'installed_count', 'license_count']
@@ -56,11 +69,29 @@ class InstalledSoftwareViewSet(viewsets.ModelViewSet):
 class LicenseViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows licences to be viewed or edited.
+
+    Supports:
+    - Filter by availability: ?available=true (shows licenses with available slots)
     """
 
     queryset = License.objects.all()
     serializer_class = LicenseSerializer
     permission_classes = [IsAdminOrReadOnly]
+
+    def get_queryset(self):
+        """Filter licenses by availability if requested"""
+        queryset = super().get_queryset()
+
+        # Filter by available licenses (those with unused slots)
+        available = self.request.query_params.get('available', None)
+        if available and available.lower() == 'true':
+            # Annotate with usage count and filter where usage < quantity
+            from django.db.models import Count, F
+            queryset = queryset.annotate(
+                usage_count=Count('installations')
+            ).filter(usage_count__lt=F('quantity'))
+
+        return queryset
 
     @action(detail=True, methods=['get'])
     def eligible_assets(self, request, pk=None):

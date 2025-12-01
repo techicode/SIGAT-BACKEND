@@ -270,7 +270,7 @@ def audit_computer_detail_save(sender, instance, created, **kwargs):
         instance=instance,
         details={
             'asset_inventory_code': instance.asset.inventory_code if instance.asset else None,
-            'cpu': instance.cpu,
+            'cpu_model': instance.cpu_model,
             'ram_gb': str(instance.ram_gb) if instance.ram_gb else None,
         }
     )
@@ -442,7 +442,6 @@ def audit_software_save(sender, instance, created, **kwargs):
     details = {
         'name': instance.name,
         'developer': instance.developer,
-        'version': instance.version,
     }
 
     if not created:
@@ -462,7 +461,6 @@ def audit_software_delete(sender, instance, **kwargs):
         details={
             'name': instance.name,
             'developer': instance.developer,
-            'version': instance.version,
         }
     )
 
@@ -499,7 +497,7 @@ def audit_license_delete(sender, instance, **kwargs):
         instance=instance,
         details={
             'software': instance.software.name if instance.software else None,
-            'license_type': instance.license_type,
+            'quantity': instance.quantity,
         }
     )
 

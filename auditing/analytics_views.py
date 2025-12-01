@@ -36,7 +36,7 @@ def assets_distribution(request):
     for item in by_status:
         item['label'] = dict(Asset.StatusChoices.choices).get(item['status'], item['status'])
 
-    # By department
+    # By department (Top 10)
     by_department = list(Asset.objects.filter(
         department__isnull=False
     ).values(
@@ -83,14 +83,14 @@ def employees_distribution(request):
     """
     Get distribution of employees.
     """
-    # By department
+    # By department (Top 10)
     by_department = list(Employee.objects.filter(
         department__isnull=False
     ).values(
         'department__name'
     ).annotate(
         count=Count('id')
-    ).order_by('-count'))
+    ).order_by('-count')[:10])  # Limit to Top 10
 
     for item in by_department:
         item['label'] = item['department__name']
@@ -183,19 +183,31 @@ def software_analytics(request):
         item['label'] = f"{item['name']} ({item['developer']})"
         item['count'] = item['installations_count']
 
-    # License usage overview
-    licenses = License.objects.prefetch_related('installations').all()
-    license_data = []
+    # License usage overview - grouped by software
+    # Get all licenses grouped by software
+    from collections import defaultdict
+
+    licenses = License.objects.select_related('software').prefetch_related('installations').all()
+    software_licenses = defaultdict(lambda: {'total': 0, 'in_use': 0, 'name': '', 'developer': ''})
 
     for lic in licenses:
+        software_key = lic.software.id
         in_use = lic.installations.count()
-        available = lic.quantity - in_use
 
+        # Aggregate by software
+        software_licenses[software_key]['name'] = lic.software.name
+        software_licenses[software_key]['developer'] = lic.software.developer
+        software_licenses[software_key]['total'] += lic.quantity
+        software_licenses[software_key]['in_use'] += in_use
+
+    # Convert to list and calculate available
+    license_data = []
+    for data in software_licenses.values():
         license_data.append({
-            'name': lic.software.name,
-            'total': lic.quantity,
-            'in_use': in_use,
-            'available': max(0, available)
+            'name': f"{data['name']} ({data['developer']})",
+            'total': data['total'],
+            'in_use': data['in_use'],
+            'available': max(0, data['total'] - data['in_use'])
         })
 
     # Sort by total quantity and take top 10
