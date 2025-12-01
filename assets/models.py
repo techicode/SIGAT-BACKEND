@@ -11,9 +11,9 @@ class Asset(models.Model):
         OTHER = "OTHER", "Otro"
 
     class StatusChoices(models.TextChoices):
-        IN_STORAGE = "BODEGA", "En Bodega"
+        IN_STORAGE = "EN_BODEGA", "En Bodega"
         ASSIGNED = "ASIGNADO", "Asignado"
-        IN_REPAIR = "REPARACION", "En Reparación"
+        IN_REPAIR = "EN_REPARACION", "En Reparación"
         DISPOSED = "DE_BAJA", "De Baja"
 
     inventory_code = models.CharField(
