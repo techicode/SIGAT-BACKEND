@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count
 
@@ -17,6 +18,12 @@ from .serializers import (
     UserSerializer,
     ChangePasswordSerializer,
 )
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
 
 
 class ChangePasswordView(APIView):
@@ -60,6 +67,7 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all().order_by("-date_joined")
     serializer_class = UserSerializer
     permission_classes = [IsAdminUser]
+    pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['username', 'email', 'first_name', 'last_name']
     filterset_fields = {
@@ -81,6 +89,7 @@ class DepartmentViewSet(viewsets.ModelViewSet):
     ).order_by("name")
     serializer_class = DepartmentSerializer
     permission_classes = [IsAdminOrReadOnly]
+    pagination_class = StandardResultsSetPagination
 
     def create(self, request, *args, **kwargs):
         """Override create to add detailed logging for validation errors"""
@@ -110,6 +119,7 @@ class EmployeeViewSet(viewsets.ModelViewSet):
     queryset = Employee.objects.select_related('department').all().order_by("last_name", "first_name")
     serializer_class = EmployeeSerializer
     permission_classes = [IsAdminOrReadOnly]
+    pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     search_fields = ['first_name', 'last_name', 'email', 'rut', 'position']
     filterset_fields = {
